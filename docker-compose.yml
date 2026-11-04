@@ -1,14 +1,14 @@
-version: "3.8"
 services:
   web:
     build: .
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     ports:
-      - "8000:8000"
+      - "8080:8000"
     environment:
       DATABASE_URL: postgresql://program:test@db:5432/persons
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:13
@@ -16,6 +16,11 @@ services:
       POSTGRES_USER: program
       POSTGRES_PASSWORD: test
       POSTGRES_DB: persons
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U program -d persons"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
       - pgdata:/var/lib/postgresql/data
 
