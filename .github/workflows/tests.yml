@@ -16,15 +16,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: Build and start containers
+        run: docker compose up --build -d
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: Run Python tests
+        run: docker compose exec -T web python -m pytest -v
 
-      - name: Run tests
-        run: python -m pytest -v
+      - name: Stop containers
+        if: always()
+        run: docker compose down -v
+
+
+
+
+
