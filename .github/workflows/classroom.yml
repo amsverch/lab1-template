@@ -1,4 +1,6 @@
+
 name: GitHub Classroom Workflow
+
 on:
   push:
     branches:
@@ -6,58 +8,44 @@ on:
   pull_request:
     branches:
       - master
+
 jobs:
   build:
     name: Autograding
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # --- НАЧАЛО: сборка и запуск приложения (Шаг 8) ---
+      - name: Start application and database
+        run: docker compose up --build -d
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build Docker image
-        # Если у тебя Dockerfile в корне, это соберёт образ
-        run: docker build -t my-api-image .
-
-      - name: Start application container
-        # Запускаем контейнер в фоне. Важно: expose порт, на котором слушает твой Python API (обычно 8000 или 5000)
-        # Подставь правильный порт и команду запуска, если у тебя не стандартный gunicorn/uvicorn
+      - name: Wait for API
         run: |
-          docker run -d --name my-api-container -p 8000:8000 my-api-image
-          # Даём приложению время прогреться (Python + DB иногда нужно 5–10 сек)
-          sleep 10
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8080/openapi.json > /dev/null; then
+              echo "API is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become ready"
+          docker compose logs
+          exit 1
 
-      # --- КОНЕЦ: сборка и запуск ---
+      - name: Install Newman
+        run: npm install -g newman
 
       - name: Run API Tests
-        uses: matt-ball/newman-action@master
-        with:
-          collection: postman/[inst] Lab1.postman_collection.json
-          environment: postman/[inst][heroku] Lab1.postman_environment.json
-          delayRequest: 100
-          reporters: '[ "cli" ]'
-
-      - name: Stop application container
-        # Обязательно останавливаем и удаляем, чтобы не забивать раннер
         run: |
-          docker stop my-api-container || true
-          docker rm my-api-container || true
+          newman run "postman/[inst] Lab1.postman_collection.json" \
+            -e "postman/[inst][local] Lab1.postman_environment.json" \
+            --delay-request 100
 
-      - name: Autograding
-        uses: education/autograding@v1
-        continue-on-error: true
+      - name: Stop containers
+        if: always()
+        run: docker compose down -v
 
-      - name: Github auto grader mark
-        uses: Romanow/google-sheet-autograder-marker@v1.0
-        with:
-          google_token: ${{secrets.GOOGLE_API_KEY}}
-          sheet_id: "1xkgjUX6Qmk7rdJG-QPOToav-HWWtthJjnShIKnw3oIY"
-          homework_number: 1
-          user_column: 'D'
-          column_offset: 'F'
-          mark: "'+"
