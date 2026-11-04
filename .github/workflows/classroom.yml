@@ -15,7 +15,24 @@ jobs:
         with:
           fetch-depth: 0
 
-      # TODO build, test and deploy project
+      # --- НАЧАЛО: сборка и запуск приложения (Шаг 8) ---
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker image
+        # Если у тебя Dockerfile в корне, это соберёт образ
+        run: docker build -t my-api-image .
+
+      - name: Start application container
+        # Запускаем контейнер в фоне. Важно: expose порт, на котором слушает твой Python API (обычно 8000 или 5000)
+        # Подставь правильный порт и команду запуска, если у тебя не стандартный gunicorn/uvicorn
+        run: |
+          docker run -d --name my-api-container -p 8000:8000 my-api-image
+          # Даём приложению время прогреться (Python + DB иногда нужно 5–10 сек)
+          sleep 10
+
+      # --- КОНЕЦ: сборка и запуск ---
 
       - name: Run API Tests
         uses: matt-ball/newman-action@master
@@ -24,6 +41,12 @@ jobs:
           environment: postman/[inst][heroku] Lab1.postman_environment.json
           delayRequest: 100
           reporters: '[ "cli" ]'
+
+      - name: Stop application container
+        # Обязательно останавливаем и удаляем, чтобы не забивать раннер
+        run: |
+          docker stop my-api-container || true
+          docker rm my-api-container || true
 
       - name: Autograding
         uses: education/autograding@v1
