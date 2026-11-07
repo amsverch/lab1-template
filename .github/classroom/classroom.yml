@@ -1,0 +1,38 @@
+name: Lab1 CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker compose build
+
+      - name: Start application and database
+        run: docker compose up -d
+
+      - name: Check containers
+        run: docker compose ps
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Run integration tests
+        run: |
+          newman run "postman/[inst] Lab1.postman_collection.json" \
+          -e "postman/[inst][local] Lab1.postman_environment.json"
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down -v
