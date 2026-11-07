@@ -22,6 +22,14 @@ jobs:
       - name: Start application and database
         run: docker compose up -d
 
+
+      - name: Build and start containers
+        run: docker compose up --build -d
+
+      - name: Run Python tests
+        run: docker compose exec -T web python -m pytest -v
+
+
       - name: Check containers
         run: docker compose ps
 
@@ -36,3 +44,9 @@ jobs:
       - name: Stop containers
         if: always()
         run: docker compose down -v
+
+
+
+
+
+
