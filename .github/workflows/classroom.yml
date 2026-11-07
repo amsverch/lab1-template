@@ -1,5 +1,4 @@
-
-name: GitHub Classroom Workflow
+name: Lab1 CI
 
 on:
   push:
@@ -10,42 +9,37 @@ on:
       - master
 
 jobs:
-  build:
-    name: Autograding
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Start application and database
+      - name: Build and start containers
         run: docker compose up --build -d
 
-      - name: Wait for API
-        run: |
-          for i in {1..30}; do
-            if curl -fsS http://localhost:8080/openapi.json > /dev/null; then
-              echo "API is ready"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "API did not become ready"
-          docker compose logs
-          exit 1
+      - name: Run Python tests
+        run: docker compose exec -T web python -m pytest -v
+
+
+      - name: Check containers
+        run: docker compose ps
 
       - name: Install Newman
         run: npm install -g newman
 
-      - name: Run API Tests
+      - name: Run integration tests
         run: |
           newman run "postman/[inst] Lab1.postman_collection.json" \
-            -e "postman/[inst][local] Lab1.postman_environment.json" \
-            --delay-request 100
+          -e "postman/[inst][local] Lab1.postman_environment.json"
 
       - name: Stop containers
         if: always()
         run: docker compose down -v
+
+
+
+
+
 
